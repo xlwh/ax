@@ -1,0 +1,67 @@
+@CHARSET "UTF-8";
+body{
+	margin:0px;
+}
+input {vertical-align:middle;}
+.login_top{
+	width:100%;
+	height:120px;
+	background-color:#63B8FF;
+}
+
+.login_top .login_top_title{
+	width:450px;
+	height:120px;
+	
+}
+
+.login_top .login_top_title .label{
+	font-family:'华文行楷';
+	font-size:3em;
+	height:120px;
+	font-weight:bolder;
+	font-style:italic;
+	margin-top:auto;
+	margin-bottom:auto;
+}
+
+.login_form{ 
+	width:800px;
+	height:415px; 
+	background-image:url("/images/login_main.png");
+	margin-left:auto;
+	margin-right:auto;
+	margin-top:30px;
+}
+
+.login_form .label{
+	top:500px;
+	left:850px;
+	position: absolute;
+}
+
+.login_form .login{
+	width:445px;
+	height:199px;
+	
+	position: absolute;
+	top:344px;
+	margin-left:298px;
+	border-radius:20px;
+}
+
+
+.login_foot{
+	width:100%;
+	height:40px;
+	background-color:#63B8FF;
+	position: absolute; 
+    bottom: 0; 
+}
+
+.login_foot .label{
+	width:100px;
+	height:100%;
+	margin-left:auto;
+	margin-right:auto;
+}

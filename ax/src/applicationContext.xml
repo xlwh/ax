@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:tx="http://www.springframework.org/schema/tx"
+	xmlns:aop="http://www.springframework.org/schema/aop"
+	xsi:schemaLocation="http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop-4.0.xsd
+		http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+		http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx-4.0.xsd
+		http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-4.0.xsd">
+        
+        <!-- 加载配置文件 -->
+       	<bean id="propertyConfigurer" class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">
+			  <property name="locations">
+			   <list>
+				    <value>classpath:jdbc.properties</value>
+				    <value>classpath:config.properties</value>
+			    </list>
+			  </property>
+ 		</bean>
+	    
+        <bean id="dataSource" class="com.mchange.v2.c3p0.ComboPooledDataSource" >
+		<property name="driverClass"><value>${driverClassName}</value></property>
+		<property name="jdbcUrl" ><value>jdbc:mysql://127.0.0.1:3306/ax?useUnicode=true&amp;characterEncoding=UTF-8</value></property>
+        <property name="user"><value>${username}</value></property>
+		<property name="password"><value>${password}</value></property>
+		
+		<!-- <property name="jdbcUrl" ><value>jdbc:mysql://sqld.duapp.com:4050/TIpVtfMqpGgpyzdeQOzT?useUnicode=true&amp;characterEncoding=UTF-8</value></property>
+		<property name="user"><value>zzKN4YnSTjGnTmjQWbiPfpTB</value></property>
+		<property name="password"><value>e4hpVj995krLbQqMp9S0Ex3uvfNlzvLa</value></property> -->
+		
+		<property name="initialPoolSize" value="1" />
+		<property name="minPoolSize" value="1" />
+		<property name="maxPoolSize" value="300" />
+		<!-- 最大空闲时间，60表示60秒内无使用，则连接被丢弃，如果为0,表示始终保持连接 Default:0 -->
+		<property name="maxIdleTime" value="60" />
+		<!-- 当连接池中的连接耗尽时，c3p0一次同时获取的连接数 Default:3 -->
+		<property name="acquireIncrement" value="5" />
+		<!-- 每60秒检查所有连接池中的空闲连接 Default:0 -->
+		<property name="idleConnectionTestPeriod" value="60" />
+	</bean>
+	
+	<bean id="sessionFactory" class="org.springframework.orm.hibernate4.LocalSessionFactoryBean">
+		<property name="dataSource">
+			<ref bean="dataSource" />
+		</property>
+		<property name="hibernateProperties">
+			<props>
+				<prop key="hibernate.dialect">org.hibernate.dialect.MySQLDialect</prop>
+				<prop key="hibernate.hbm2ddl.auto">update</prop>
+				<prop key="javax.persistence.validation.mode">none</prop> 
+				<prop key="hibernate.show_sql">true</prop>
+				<prop key="hibernate.search.default.directory_provider">filesystem</prop>
+				<prop key="hibernate.search.default.indexBase">/etc/temp/index</prop>
+			</props>
+		</property>
+		
+		<property name="packagesToScan">
+			<value>com.ax.bean</value>
+		</property>
+		
+	</bean>
+	
+	<bean id="transactionManager" class="org.springframework.orm.hibernate4.HibernateTransactionManager">
+		<property name="sessionFactory" ref="sessionFactory" />
+	</bean>
+	<tx:annotation-driven transaction-manager="transactionManager" />
+	
+	<context:annotation-config/>
+     <context:component-scan base-package="com.ax"></context:component-scan>
+     <bean id="configReader" class="com.ax.utils.ConfigReader">
+       <property name="imageDir"><value>${imageDir}</value></property>
+     </bean>
+
+
+	  
+	<!-- 方式二：使用MethodInvokingJobDetailFactoryBean，任务类可以不实现Job接口，通过targetMethod指定调用方法 -->
+	<!-- 定义目标bean和bean中的方法 -->
+	<bean id="SpringQtzJob" class="com.ax.service.job.IndexSaveJob" />
+	<bean id="SpringQtzJobMethod" class="org.springframework.scheduling.quartz.MethodInvokingJobDetailFactoryBean">
+		<property name="targetObject">
+			<ref bean="SpringQtzJob" />
+		</property>
+		<property name="targetMethod">  <!-- 要执行的方法名称 -->
+			<value>saveIndex</value>
+		</property>
+	</bean>
+
+	<!-- ======================== 调度触发器 ======================== -->
+	
+	<bean id="CronTriggerBean" class="org.springframework.scheduling.quartz.CronTriggerFactoryBean">
+		<property name="jobDetail" ref="SpringQtzJobMethod"></property>
+		<!-- 每天凌晨两点执行任务调度 -->
+		<property name="cronExpression" value="0 0 2 * * ?"></property>
+	</bean>
+
+	<!-- ======================== 调度工厂 ======================== -->
+	<bean id="SpringJobSchedulerFactoryBean"
+		class="org.springframework.scheduling.quartz.SchedulerFactoryBean">
+		<property name="triggers">
+			<list>
+				<ref bean="CronTriggerBean" />
+			</list>
+		</property>
+	</bean>  
+     
+     
+     <!-- 开启AOP监听     -->   
+    <aop:aspectj-autoproxy expose-proxy="true"/>
+     
+    <!-- hibernate4必须配置为开启事务 否则 getCurrentSession()获取不到 -->
+    <tx:advice id="txAdvice" transaction-manager="transactionManager">
+        <tx:attributes>
+            <tx:method name="save*" propagation="REQUIRED" />
+            <tx:method name="get*" propagation="REQUIRED" />
+             <tx:method name="find*" propagation="REQUIRED" />
+            <tx:method name="*" propagation="REQUIRED"/>
+        </tx:attributes>
+    </tx:advice>
+     
+    <aop:config expose-proxy="true">
+        <aop:pointcut id="txPointcut" expression="execution(* com.ax.dao..*.*(..))" />
+        <aop:advisor advice-ref="txAdvice" pointcut-ref="txPointcut"/>
+    </aop:config> 
+    
+
+</beans>
